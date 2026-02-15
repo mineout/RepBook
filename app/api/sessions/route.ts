@@ -36,7 +36,6 @@ export async function GET(request: Request) {
       `id, performed_at, muscle_group, note, perceived_intensity, ` +
         `sets(weight, reps, exercise:exercise_id(name))`,
     )
-    .overrideTypes<SessionRow[]>()
     .eq("user_id", userId);
 
   if (muscleGroupFilter) {
@@ -51,7 +50,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const normalized = ((data ?? []) as SessionRow[]).map((session) => {
+  const rows = Array.isArray(data)
+    ? (data as unknown as SessionRow[])
+    : ([] as SessionRow[]);
+
+  const normalized = rows.map((session) => {
     const sets = session.sets ?? [];
     const setCount = sets.length;
     const totalVolume = sets.reduce((sum, set) => {
@@ -99,7 +102,7 @@ export async function GET(request: Request) {
       )
     : normalized;
 
-  const hasMore = (data?.length ?? 0) === limit;
+  const hasMore = rows.length === limit;
 
   return NextResponse.json({ sessions: filtered, hasMore });
 }
