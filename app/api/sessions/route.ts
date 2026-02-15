@@ -1,19 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
-type SessionRow = {
-  id: string;
-  performed_at: string;
-  muscle_group: string;
-  note: string | null;
-  perceived_intensity: number | null;
-  sets: {
-    weight: number | null;
-    reps: number | null;
-    exercise: { name: string | null } | null;
-  }[] | null;
-};
-
 const DEFAULT_LIMIT = 8;
 
 export async function GET(request: Request) {
@@ -32,10 +19,11 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   let query = supabase
     .from("sessions")
-    .select<SessionRow>(
+    .select(
       `id, performed_at, muscle_group, note, perceived_intensity, ` +
         `sets(weight, reps, exercise:exercise_id(name))`,
     )
+    .returns<SessionRow>()
     .eq("user_id", userId);
 
   if (muscleGroupFilter) {
@@ -50,7 +38,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const normalized = (data ?? []).map((session) => {
+  const normalized = ((data ?? []) as SessionRow[]).map((session) => {
     const sets = session.sets ?? [];
     const setCount = sets.length;
     const totalVolume = sets.reduce((sum, set) => {
