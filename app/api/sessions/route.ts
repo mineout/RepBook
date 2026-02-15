@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
+type SessionRow = {
+  id: string;
+  performed_at: string;
+  muscle_group: string;
+  note: string | null;
+  perceived_intensity: number | null;
+  sets: {
+    weight: number | null;
+    reps: number | null;
+    exercise: { name: string | null } | null;
+  }[] | null;
+};
+
 const DEFAULT_LIMIT = 8;
 
 export async function GET(request: Request) {
@@ -19,7 +32,7 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   let query = supabase
     .from("sessions")
-    .select(
+    .select<SessionRow>(
       `id, performed_at, muscle_group, note, perceived_intensity, ` +
         `sets(weight, reps, exercise:exercise_id(name))`,
     )
