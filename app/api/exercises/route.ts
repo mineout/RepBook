@@ -20,8 +20,14 @@ export async function GET() {
 
   const uniqueNames = new Set<string>();
   const suggestions: string[] = [];
-  (data ?? []).forEach((row) => {
-    const name = row.exercise?.name;
+  type ExerciseRow = {
+    exercise: { name: string | null } | null;
+  };
+
+  const rows: ExerciseRow[] = Array.isArray(data) ? (data as unknown as ExerciseRow[]) : [];
+
+  rows.forEach((row) => {
+    const name = row.exercise?.name ?? undefined;
     if (name && !uniqueNames.has(name)) {
       uniqueNames.add(name);
       suggestions.push(name);
