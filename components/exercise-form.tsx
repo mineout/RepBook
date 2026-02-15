@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveExercise, type SaveExercisePayload } from "@/lib/actions/save-exercise";
 import { updateSession } from "@/lib/actions/update-session";
@@ -93,6 +93,8 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
   const [sets, setSets] = useState<SetInput[]>(initialFormState.sets);
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [exerciseSuggestions, setExerciseSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const totalSteps = 3;
 
@@ -112,6 +114,29 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
     }),
     [exerciseName, filledSets, muscleGroup, note, perceivedEffort, sessionDate],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchExercises() {
+      try {
+        const response = await fetch("/api/exercises", { cache: "no-store" });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body.error ?? "운동 목록을 불러오지 못했습니다.");
+        }
+        if (!cancelled) {
+          setExerciseSuggestions(body.exercises ?? []);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    fetchExercises();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSetChange = (id: string, field: keyof SetInput, value: string) => {
     setSets((prev) => prev.map((set) => (set.id === id ? { ...set, [field]: value } : set)));
@@ -188,7 +213,7 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
+    <div className="flex flex-col gap-6">
       <form
         onSubmit={handleSubmit}
         className="flex-1 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
@@ -247,15 +272,50 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
             </div>
 
             <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-              운동 이름
+            운동 이름
+            <div className="relative">
               <input
                 required
                 value={exerciseName}
-                onChange={(event) => setExerciseName(event.target.value)}
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                onChange={(event) => {
+                  setExerciseName(event.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 placeholder="예: 바벨 스쿼트"
               />
-            </label>
+              {showSuggestions && exerciseSuggestions.length > 0 ? (
+                <div className="absolute z-10 mt-2 w-full rounded-xl border border-zinc-100 bg-white shadow-lg">
+                  <ul className="max-h-40 overflow-y-auto text-sm text-zinc-700">
+                    {exerciseSuggestions
+                      .filter((name) =>
+                        exerciseName ? name.toLowerCase().includes(exerciseName.toLowerCase()) : true,
+                      )
+                      .slice(0, 6)
+                      .map((name, index) => (
+                        <li key={`${name}-${index}`}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExerciseName(name);
+                              setShowSuggestions(false);
+                            }}
+                            className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-zinc-50"
+                          >
+                            {name}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  <div className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-400">
+                    새 이름을 입력하면 자동으로 추가됩니다.
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </label>
           </section>
         )}
 
@@ -409,20 +469,6 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
         </div>
       </form>
 
-      <aside className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-blue-50/60 p-5 text-sm text-blue-900">
-        <h2 className="text-base font-semibold">단계 안내</h2>
-        <ol className="list-decimal space-y-2 pl-5 text-sm text-blue-800">
-          <li>세션 기본 정보 입력 (날짜, 부위, 운동명)</li>
-          <li>세트별 중량/횟수 입력</li>
-          <li>세트 요약 확인 후 RPE·메모 작성</li>
-        </ol>
-        <pre className="whitespace-pre-wrap rounded-xl bg-white/80 p-4 text-xs text-zinc-800">
-          {JSON.stringify(summary, null, 2)}
-        </pre>
-        <p className="text-xs text-blue-700">
-          최종 저장 버튼을 누르면 Supabase `sessions`, `sets`, `exercises` 테이블에 순차 입력하도록 연결할 수 있습니다.
-        </p>
-      </aside>
     </div>
   );
 }
