@@ -36,12 +36,7 @@ export async function GET(request: Request) {
       `id, performed_at, muscle_group, note, perceived_intensity, ` +
         `sets(weight, reps, exercise:exercise_id(name))`,
     )
-    .overrideTypes<SessionRow[]>(
-      {
-        Error:
-          "Type mismatch: Cannot cast array result to a single object. Use .overrideTypes<Array<YourType>>",
-      },
-    )
+    .overrideTypes<SessionRow[]>()
     .eq("user_id", userId);
 
   if (muscleGroupFilter) {
