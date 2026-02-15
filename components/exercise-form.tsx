@@ -1,0 +1,428 @@
+"use client";
+
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { saveExercise, type SaveExercisePayload } from "@/lib/actions/save-exercise";
+import { updateSession } from "@/lib/actions/update-session";
+
+const muscleGroups = [
+  { value: "chest", label: "가슴" },
+  { value: "back", label: "등" },
+  { value: "legs", label: "하체" },
+  { value: "shoulders", label: "어깨" },
+  { value: "arms", label: "팔" },
+  { value: "core", label: "복부" },
+  { value: "fullbody", label: "전신" },
+  { value: "other", label: "기타" },
+];
+
+type SetInput = {
+  id: string;
+  weight: string;
+  reps: string;
+};
+
+const createSet = (): SetInput => ({
+  id: Math.random().toString(36).slice(2),
+  weight: "",
+  reps: "",
+});
+
+export type ExerciseFormInitialValues = {
+  sessionDate: string;
+  muscleGroup: string;
+  exerciseName: string;
+  perceivedEffort?: number | string | null;
+  note?: string | null;
+  sets: { weight: number | null; reps: number | null }[];
+};
+
+type ExerciseFormProps = {
+  onSaved?: () => void;
+  mode?: "create" | "edit";
+  sessionId?: string;
+  initialValues?: ExerciseFormInitialValues;
+};
+
+export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValues }: ExerciseFormProps = {}) {
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const router = useRouter();
+  const isEditMode = mode === "edit" && Boolean(sessionId);
+
+  const buildInitialSets = useCallback(
+    (source?: { weight: number | null; reps: number | null }[]) => {
+      if (!source || !source.length) {
+        return [createSet()];
+      }
+      return source.map((set) => ({
+        id: Math.random().toString(36).slice(2),
+        weight: set.weight != null ? String(set.weight) : "",
+        reps: set.reps != null ? String(set.reps) : "",
+      }));
+    },
+    [],
+  );
+
+  const initialFormState = useMemo(() => {
+    if (isEditMode && initialValues) {
+      return {
+        exerciseName: initialValues.exerciseName,
+        muscleGroup: initialValues.muscleGroup,
+        sessionDate: initialValues.sessionDate,
+        perceivedEffort: initialValues.perceivedEffort?.toString() ?? "6",
+        note: initialValues.note ?? "",
+        sets: buildInitialSets(initialValues.sets),
+      };
+    }
+    return {
+      exerciseName: "",
+      muscleGroup: "chest",
+      sessionDate: today,
+      perceivedEffort: "6",
+      note: "",
+      sets: [createSet()],
+    };
+  }, [buildInitialSets, initialValues, isEditMode, today]);
+
+  const [step, setStep] = useState(1);
+  const [exerciseName, setExerciseName] = useState(initialFormState.exerciseName);
+  const [muscleGroup, setMuscleGroup] = useState(initialFormState.muscleGroup);
+  const [sessionDate, setSessionDate] = useState(initialFormState.sessionDate);
+  const [perceivedEffort, setPerceivedEffort] = useState(initialFormState.perceivedEffort);
+  const [note, setNote] = useState(initialFormState.note);
+  const [sets, setSets] = useState<SetInput[]>(initialFormState.sets);
+  const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const totalSteps = 3;
+
+  const filledSets = useMemo(
+    () => sets.filter((set) => set.weight.trim() && set.reps.trim()),
+    [sets],
+  );
+
+  const summary = useMemo<SaveExercisePayload>(
+    () => ({
+      sessionDate,
+      muscleGroup,
+      exerciseName,
+      perceivedEffort,
+      note,
+      sets: filledSets,
+    }),
+    [exerciseName, filledSets, muscleGroup, note, perceivedEffort, sessionDate],
+  );
+
+  const handleSetChange = (id: string, field: keyof SetInput, value: string) => {
+    setSets((prev) => prev.map((set) => (set.id === id ? { ...set, [field]: value } : set)));
+  };
+
+  const handleSetAdd = () => setSets((prev) => [...prev, createSet()]);
+  const handleSetRemove = (id: string) =>
+    setSets((prev) => (prev.length === 1 ? prev : prev.filter((set) => set.id !== id)));
+
+  const resetForm = useCallback(() => {
+    setExerciseName(initialFormState.exerciseName);
+    setMuscleGroup(initialFormState.muscleGroup);
+    setSessionDate(initialFormState.sessionDate);
+    setPerceivedEffort(initialFormState.perceivedEffort);
+    setNote(initialFormState.note);
+    setSets(initialFormState.sets);
+    setStep(1);
+    setStatus("idle");
+    setStatusMessage(null);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [initialFormState]);
+
+  const isStepValid = () => {
+    if (step === 1) {
+      return Boolean(sessionDate && muscleGroup && exerciseName.trim());
+    }
+    if (step === 2) {
+      return filledSets.length > 0;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (step < totalSteps && isStepValid()) {
+      setStep((current) => current + 1);
+    }
+  };
+
+  const goBack = () => setStep((current) => Math.max(1, current - 1));
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!isStepValid()) return;
+
+    try {
+      setStatus("saving");
+      setStatusMessage(isEditMode ? "운동을 수정하는 중입니다..." : "운동을 저장하는 중입니다...");
+      if (isEditMode && sessionId) {
+        await updateSession({ ...summary, sessionId });
+        onSaved?.();
+        setStatus("success");
+        setStatusMessage("수정이 완료되었습니다.");
+        resetForm();
+      } else {
+        await saveExercise(summary);
+        onSaved?.();
+        setStatus("success");
+        setStatusMessage("저장 완료! 3초 후 메인 화면으로 이동합니다.");
+        timerRef.current = setTimeout(() => {
+          router.push("/");
+          router.refresh();
+          resetForm();
+        }, 3000);
+      }
+    } catch (error) {
+      setStatus("error");
+      setStatusMessage(
+        error instanceof Error ? error.message : "운동 저장 중 알 수 없는 오류가 발생했습니다.",
+      );
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 lg:flex-row">
+      <form
+        onSubmit={handleSubmit}
+        className="flex-1 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+      >
+        <header className="mb-6 space-y-1">
+          <p className="text-sm font-medium text-blue-700">세션 기록</p>
+          <h1 className="text-2xl font-semibold text-zinc-900">운동 추가</h1>
+          <p className="text-sm text-zinc-500">단계별로 정보를 입력해 새로운 운동 세션을 만듭니다.</p>
+        </header>
+
+        <div className="mb-6 flex items-center gap-2 text-sm font-semibold text-zinc-500">
+          <span className="text-blue-600">STEP {step}</span>
+          <span className="text-zinc-300">/</span>
+          <span>{totalSteps}</span>
+        </div>
+
+        {statusMessage && (
+          <div
+            className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+              status === "error"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : "border-blue-200 bg-blue-50 text-blue-800"
+            }`}
+          >
+            {statusMessage}
+          </div>
+        )}
+
+        {step === 1 && (
+          <section className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+                수행 날짜
+                <input
+                  type="date"
+                  value={sessionDate}
+                  onChange={(event) => setSessionDate(event.target.value)}
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+                근육 부위
+                <select
+                  value={muscleGroup}
+                  onChange={(event) => setMuscleGroup(event.target.value)}
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  {muscleGroups.map((group) => (
+                    <option key={group.value} value={group.value}>
+                      {group.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+              운동 이름
+              <input
+                required
+                value={exerciseName}
+                onChange={(event) => setExerciseName(event.target.value)}
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="예: 바벨 스쿼트"
+              />
+            </label>
+          </section>
+        )}
+
+        {step === 2 && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-900">세트 입력</h2>
+              <button
+                type="button"
+                onClick={handleSetAdd}
+                className="rounded-full border border-blue-200 px-4 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50"
+              >
+                세트 추가
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {sets.map((set, index) => (
+                <div
+                  key={set.id}
+                  className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-3 shadow-sm"
+                >
+                  <div className="mb-3 flex items-center justify-between text-sm text-zinc-500">
+                    <span>세트 {index + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSetRemove(set.id)}
+                      className="text-xs font-medium text-rose-500 disabled:text-zinc-300"
+                      disabled={sets.length === 1}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+                      중량 (kg)
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.5"
+                        value={set.weight}
+                        onChange={(event) => handleSetChange(set.id, "weight", event.target.value)}
+                        className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        placeholder="예: 40"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
+                      횟수 (reps)
+                      <input
+                        type="number"
+                        min={1}
+                        value={set.reps}
+                        onChange={(event) => handleSetChange(set.id, "reps", event.target.value)}
+                        className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        placeholder="예: 12"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {step === 3 && (
+          <section className="space-y-4">
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4">
+              <h2 className="mb-3 text-lg font-semibold text-zinc-900">세트 요약</h2>
+              {filledSets.length ? (
+                <ul className="space-y-2 text-sm text-zinc-600">
+                  {filledSets.map((set, index) => (
+                    <li key={set.id} className="flex justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
+                      <span>세트 {index + 1}</span>
+                      <span className="font-semibold text-zinc-900">
+                        {set.weight}kg × {set.reps}회
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-zinc-500">입력된 세트가 없습니다. 이전 단계로 돌아가 추가하세요.</p>
+              )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
+                RPE (1-10)
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={perceivedEffort}
+                  onChange={(event) => setPerceivedEffort(event.target.value)}
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+
+              <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 sm:col-span-2">
+                메모
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  className="min-h-[120px] rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="세션 중 특이사항을 기록하세요"
+                />
+              </label>
+            </div>
+          </section>
+        )}
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          {step > 1 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="rounded-full border border-zinc-200 px-6 py-3 text-base font-semibold text-zinc-600 transition hover:bg-zinc-50"
+            >
+              이전 단계
+            </button>
+          )}
+
+          {step < totalSteps && (
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!isStepValid() || status === "saving"}
+              className="flex-1 rounded-full bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition enabled:hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-200"
+            >
+              다음 단계
+            </button>
+          )}
+
+          {step === totalSteps && (
+            <button
+              type="submit"
+              disabled={status === "saving"}
+              className="flex-1 rounded-full bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-200"
+            >
+              {status === "saving" ? "저장 중..." : "운동 저장"}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={resetForm}
+            disabled={status === "saving"}
+            className="rounded-full border border-zinc-200 px-6 py-3 text-base font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            초기화
+          </button>
+        </div>
+      </form>
+
+      <aside className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-blue-50/60 p-5 text-sm text-blue-900">
+        <h2 className="text-base font-semibold">단계 안내</h2>
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-blue-800">
+          <li>세션 기본 정보 입력 (날짜, 부위, 운동명)</li>
+          <li>세트별 중량/횟수 입력</li>
+          <li>세트 요약 확인 후 RPE·메모 작성</li>
+        </ol>
+        <pre className="whitespace-pre-wrap rounded-xl bg-white/80 p-4 text-xs text-zinc-800">
+          {JSON.stringify(summary, null, 2)}
+        </pre>
+        <p className="text-xs text-blue-700">
+          최종 저장 버튼을 누르면 Supabase `sessions`, `sets`, `exercises` 테이블에 순차 입력하도록 연결할 수 있습니다.
+        </p>
+      </aside>
+    </div>
+  );
+}
