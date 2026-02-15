@@ -3,6 +3,19 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 const DEFAULT_LIMIT = 8;
 
+type SessionRow = {
+  id: string;
+  performed_at: string;
+  muscle_group: string;
+  note: string | null;
+  perceived_intensity: number | null;
+  sets: {
+    weight: number | null;
+    reps: number | null;
+    exercise: { name: string | null } | null;
+  }[] | null;
+};
+
 export async function GET(request: Request) {
   const userId = process.env.SUPABASE_DEFAULT_USER_ID;
 
