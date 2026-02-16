@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { AddSessionPanel } from "@/components/add-session-panel";
 import { SessionFeed, type SessionFeedItem } from "@/components/session-feed";
@@ -37,8 +38,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-12 sm:px-8">
       <div className="mx-auto flex max-w-5xl flex-col gap-8">
-        <header className="rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-          <h1 className="text-3xl font-bold text-zinc-900 sm:text-4xl">RepBook</h1>
+        <header className="flex min-h-[174px] items-center justify-center rounded-3xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
+          <Image
+            src="/rep-book-logo.png"
+            alt="RepBook"
+            width={362}
+            height={258}
+            priority
+            className="h-[155px] w-auto max-w-full"
+          />
         </header>
 
         <AddSessionPanel
