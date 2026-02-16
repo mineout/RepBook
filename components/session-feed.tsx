@@ -44,6 +44,10 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
 
 export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [monthlySummary, setMonthlySummary] = useState({
+    current: { dayCount: 0, totalVolume: 0 },
+    previous: { dayCount: 0, totalVolume: 0 },
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -72,6 +76,30 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
   const hasMoreRef = useRef(true);
+
+  const fetchMonthlySummary = useCallback(async () => {
+    try {
+      const response = await fetch("/api/sessions/summary", {
+        cache: "no-store",
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body.error ?? "월간 요약을 불러오지 못했습니다.");
+      }
+      setMonthlySummary({
+        current: {
+          dayCount: Number(body.current?.dayCount) || 0,
+          totalVolume: Number(body.current?.totalVolume) || 0,
+        },
+        previous: {
+          dayCount: Number(body.previous?.dayCount) || 0,
+          totalVolume: Number(body.previous?.totalVolume) || 0,
+        },
+      });
+    } catch {
+      // Keep existing summary values if summary fetch fails.
+    }
+  }, []);
 
   const fetchNext = useCallback(async () => {
     if (loadingRef.current || !hasMoreRef.current) return;
@@ -126,6 +154,10 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
   }, [fetchNext, refreshKey, exerciseFilter, muscleFilter]);
 
   useEffect(() => {
+    fetchMonthlySummary();
+  }, [fetchMonthlySummary, refreshKey]);
+
+  useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore) return;
 
@@ -162,32 +194,6 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
     return groups;
   }, [sessions]);
 
-  const monthlySummary = useMemo(() => {
-    const now = new Date();
-    const currentMonthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-    const previousMonthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-    const previousMonthKey = `${previousMonthDate.getUTCFullYear()}-${String(previousMonthDate.getUTCMonth() + 1).padStart(2, "0")}`;
-
-    const summary = {
-      current: { month: currentMonthKey, days: new Set<string>(), totalVolume: 0 },
-      previous: { month: previousMonthKey, days: new Set<string>(), totalVolume: 0 },
-    };
-
-    sessions.forEach((session) => {
-      const date = new Date(session.performedAt);
-      const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-      if (monthKey === summary.current.month) {
-        summary.current.days.add(session.performedAt.slice(0, 10));
-        summary.current.totalVolume += session.totalVolume;
-      } else if (monthKey === summary.previous.month) {
-        summary.previous.days.add(session.performedAt.slice(0, 10));
-        summary.previous.totalVolume += session.totalVolume;
-      }
-    });
-
-    return summary;
-  }, [sessions]);
-
   const handleDelete = useCallback(
     async (sessionId: string) => {
       const confirmed = window.confirm("이 운동 세션을 삭제하시겠습니까? 삭제 후에는 복구할 수 없습니다.");
@@ -206,13 +212,14 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
         }
         setSessions((prev) => prev.filter((session) => session.id !== sessionId));
         offsetRef.current = Math.max(0, offsetRef.current - 1);
+        fetchMonthlySummary();
       } catch (err) {
         setError(err instanceof Error ? err.message : "세션 삭제 중 문제가 발생했습니다.");
       } finally {
         setDeletingId(null);
       }
     },
-    [],
+    [fetchMonthlySummary],
   );
 
   return (
@@ -228,13 +235,13 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
           <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">이번 달</p>
             <p className="text-lg font-bold text-zinc-900">
-              {monthlySummary.current.days.size}일 · {monthlySummary.current.totalVolume.toLocaleString()} kg·rep
+              {monthlySummary.current.dayCount}일 · {monthlySummary.current.totalVolume.toLocaleString()} kg·rep
             </p>
           </div>
           <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">지난 달</p>
             <p className="text-lg font-bold text-zinc-900">
-              {monthlySummary.previous.days.size}일 · {monthlySummary.previous.totalVolume.toLocaleString()} kg·rep
+              {monthlySummary.previous.dayCount}일 · {monthlySummary.previous.totalVolume.toLocaleString()} kg·rep
             </p>
           </div>
         </div>
@@ -317,15 +324,15 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
                           <span>
                             {muscleGroupLabels[session.muscleGroup] ?? session.muscleGroup} - {session.exerciseName}
                           </span>
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                            세트 {session.setCount}개
+                          </span>
                           <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
                             총 {session.totalVolume.toLocaleString()} kg·rep
                           </span>
                         </h4>
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-zinc-600">
-                        <span className="rounded-full bg-white px-3 py-1 font-medium">
-                          세트 {session.setCount}개
-                        </span>
                         {session.perceivedIntensity ? (
                           <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
                             RPE {session.perceivedIntensity}
