@@ -29,6 +29,48 @@ type NormalizedSession = {
   sets: { weight: number | null; reps: number | null }[];
 };
 
+function isSessionRow(value: unknown): value is SessionRow {
+  if (!value || typeof value !== "object") return false;
+
+  const candidate = value as Record<string, unknown>;
+  const hasBaseFields =
+    typeof candidate.id === "string" &&
+    typeof candidate.performed_at === "string" &&
+    typeof candidate.muscle_group === "string" &&
+    (candidate.note === null || typeof candidate.note === "string") &&
+    (candidate.perceived_intensity === null || typeof candidate.perceived_intensity === "number");
+
+  if (!hasBaseFields) return false;
+  if (!(candidate.sets === null || Array.isArray(candidate.sets))) return false;
+
+  if (Array.isArray(candidate.sets)) {
+    const hasValidSets = candidate.sets.every((set) => {
+      if (!set || typeof set !== "object") return false;
+      const setRecord = set as Record<string, unknown>;
+      const exercise = setRecord.exercise;
+
+      return (
+        (setRecord.weight === null || typeof setRecord.weight === "number") &&
+        (setRecord.reps === null || typeof setRecord.reps === "number") &&
+        (exercise === null ||
+          (typeof exercise === "object" &&
+            exercise !== null &&
+            ((exercise as Record<string, unknown>).name === null ||
+              typeof (exercise as Record<string, unknown>).name === "string")))
+      );
+    });
+
+    if (!hasValidSets) return false;
+  }
+
+  return true;
+}
+
+function parseSessionRows(data: unknown): SessionRow[] {
+  if (!Array.isArray(data)) return [];
+  return data.filter(isSessionRow);
+}
+
 function normalizeSessions(rows: SessionRow[]): NormalizedSession[] {
   return rows.map((session) => {
     const sets = session.sets ?? [];
@@ -154,7 +196,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: pageError.message }, { status: 500 });
     }
 
-    const normalized = normalizeSessions(Array.isArray(pagedRows) ? (pagedRows as SessionRow[]) : []);
+    const normalized = normalizeSessions(parseSessionRows(pagedRows));
     const hasMore = (count ?? 0) > offset + normalized.length;
 
     return NextResponse.json({ sessions: normalized, hasMore });
@@ -180,9 +222,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const rows = Array.isArray(data)
-    ? (data as unknown as SessionRow[])
-    : ([] as SessionRow[]);
+  const rows = parseSessionRows(data);
 
   const normalized = normalizeSessions(rows);
 
