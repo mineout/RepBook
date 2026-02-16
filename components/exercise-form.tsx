@@ -99,7 +99,7 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
   const totalSteps = 3;
 
   const filledSets = useMemo(
-    () => sets.filter((set) => set.weight.trim() && set.reps.trim()),
+    () => sets.filter((set) => set.reps.trim()),
     [sets],
   );
 
@@ -351,7 +351,7 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
-                      중량 (kg)
+                      중량 (kg, 선택)
                       <input
                         type="number"
                         min={0}
@@ -359,7 +359,7 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
                         value={set.weight}
                         onChange={(event) => handleSetChange(set.id, "weight", event.target.value)}
                         className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                        placeholder="예: 40"
+                        placeholder="예: 40 (맨몸 운동이면 비워두세요)"
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-sm font-medium text-zinc-700">
@@ -390,7 +390,7 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
                     <li key={set.id} className="flex justify-between rounded-lg bg-white px-3 py-2 shadow-sm">
                       <span>세트 {index + 1}</span>
                       <span className="font-semibold text-zinc-900">
-                        {set.weight}kg × {set.reps}회
+                        {set.weight.trim() ? `${set.weight}kg × ${set.reps}회` : `${set.reps}회`}
                       </span>
                     </li>
                   ))}
