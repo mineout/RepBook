@@ -42,9 +42,16 @@ type ExerciseFormProps = {
   mode?: "create" | "edit";
   sessionId?: string;
   initialValues?: ExerciseFormInitialValues;
+  onDraftFilterChange?: (filter: { muscleGroup: string; exerciseName: string } | null) => void;
 };
 
-export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValues }: ExerciseFormProps = {}) {
+export function ExerciseForm({
+  onSaved,
+  mode = "create",
+  sessionId,
+  initialValues,
+  onDraftFilterChange,
+}: ExerciseFormProps = {}) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const router = useRouter();
   const isEditMode = mode === "edit" && Boolean(sessionId);
@@ -137,6 +144,21 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (isEditMode) {
+      return;
+    }
+    const trimmedName = exerciseName.trim();
+    if (step >= 2 && muscleGroup && trimmedName) {
+      onDraftFilterChange?.({
+        muscleGroup,
+        exerciseName: trimmedName,
+      });
+      return;
+    }
+    onDraftFilterChange?.(null);
+  }, [exerciseName, isEditMode, muscleGroup, onDraftFilterChange, step]);
 
   const handleSetChange = (id: string, field: keyof SetInput, value: string) => {
     setSets((prev) => prev.map((set) => (set.id === id ? { ...set, [field]: value } : set)));

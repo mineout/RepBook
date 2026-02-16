@@ -9,6 +9,7 @@ type AddSessionPanelProps = {
   sessionId?: string;
   initialValues?: ExerciseFormInitialValues;
   onCancelEdit?: () => void;
+  onDraftFilterChange?: (filter: { muscleGroup: string; exerciseName: string } | null) => void;
 };
 
 export function AddSessionPanel({
@@ -17,6 +18,7 @@ export function AddSessionPanel({
   sessionId,
   initialValues,
   onCancelEdit,
+  onDraftFilterChange,
 }: AddSessionPanelProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const isEditMode = mode === "edit";
@@ -43,6 +45,7 @@ export function AddSessionPanel({
             type="button"
             onClick={() => {
               onCancelEdit?.();
+              onDraftFilterChange?.(null);
               setCreateOpen(false);
             }}
             className="h-12 rounded-full border border-zinc-200 px-6 text-base font-semibold text-zinc-600 transition hover:bg-zinc-50"
@@ -52,7 +55,15 @@ export function AddSessionPanel({
         ) : (
           <button
             type="button"
-            onClick={() => setCreateOpen((prev) => !prev)}
+            onClick={() =>
+              setCreateOpen((prev) => {
+                const next = !prev;
+                if (!next) {
+                  onDraftFilterChange?.(null);
+                }
+                return next;
+              })
+            }
             className="h-12 rounded-full bg-blue-600 px-6 text-base font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             {open ? "입력창 닫기" : "운동 세션 추가"}
@@ -67,6 +78,7 @@ export function AddSessionPanel({
           mode={isEditMode ? "edit" : "create"}
           sessionId={sessionId}
           initialValues={initialValues}
+          onDraftFilterChange={onDraftFilterChange}
         />
       ) : null}
     </section>

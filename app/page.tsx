@@ -9,9 +9,11 @@ import type { ExerciseFormInitialValues } from "@/components/exercise-form";
 export default function Home() {
   const [feedRefreshKey, setFeedRefreshKey] = useState(0);
   const [editingSession, setEditingSession] = useState<SessionFeedItem | null>(null);
+  const [appliedFilter, setAppliedFilter] = useState<{ muscleGroup: string; exerciseName: string } | null>(null);
 
   const handleSaved = () => {
     setFeedRefreshKey((prev) => prev + 1);
+    setAppliedFilter(null);
     setEditingSession(null);
   };
 
@@ -20,6 +22,7 @@ export default function Home() {
   };
 
   const handleCancelEdit = () => {
+    setAppliedFilter(null);
     setEditingSession(null);
   };
 
@@ -55,8 +58,9 @@ export default function Home() {
           sessionId={editingSession?.id}
           initialValues={initialValues}
           onCancelEdit={editingSession ? handleCancelEdit : undefined}
+          onDraftFilterChange={setAppliedFilter}
         />
-        <SessionFeed refreshKey={feedRefreshKey} onEditRequest={handleEditRequest} />
+        <SessionFeed refreshKey={feedRefreshKey} onEditRequest={handleEditRequest} appliedFilter={appliedFilter} />
       </div>
     </div>
   );

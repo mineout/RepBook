@@ -7,6 +7,10 @@ const BATCH_SIZE = 8;
 type SessionFeedProps = {
   refreshKey?: number;
   onEditRequest?: (session: SessionItem) => void;
+  appliedFilter?: {
+    muscleGroup: string;
+    exerciseName: string;
+  } | null;
 };
 
 const muscleGroupLabels: Record<string, string> = {
@@ -42,7 +46,7 @@ const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
   weekday: "short",
 });
 
-export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps) {
+export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = null }: SessionFeedProps) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [monthlySummary, setMonthlySummary] = useState({
     current: { dayCount: 0, totalVolume: 0 },
@@ -142,6 +146,16 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
       setIsLoading(false);
     }
   }, [exerciseFilter, muscleFilter]);
+
+  useEffect(() => {
+    if (!appliedFilter) {
+      setMuscleFilter("");
+      setExerciseFilter("");
+      return;
+    }
+    setMuscleFilter(appliedFilter.muscleGroup);
+    setExerciseFilter(appliedFilter.exerciseName);
+  }, [appliedFilter]);
 
   useEffect(() => {
     setSessions([]);
