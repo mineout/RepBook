@@ -39,12 +39,27 @@ type SessionItem = {
 
 export type SessionFeedItem = SessionItem;
 
-const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
+function formatSetLine(sets: { weight: number | null; reps: number | null }[]) {
+  return (
+    sets
+      .map((set) => {
+        const weight = set.weight != null ? `${set.weight}kg` : null;
+        const reps = set.reps != null ? `${set.reps}회` : null;
+        return [weight, reps].filter(Boolean).join(" x ");
+      })
+      .filter((line) => line.length > 0)
+      .join(" · ") || "세트 정보 없음"
+  );
+}
+
+const weekdayFormatter = new Intl.DateTimeFormat("ko-KR", {
   weekday: "short",
 });
+
+function formatDateLabel(dateKey: string) {
+  const weekday = weekdayFormatter.format(new Date(`${dateKey}T00:00:00`));
+  return `${dateKey.replaceAll("-", "/")} (${weekday})`;
+}
 
 export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = null }: SessionFeedProps) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -56,6 +71,7 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copiedDateKey, setCopiedDateKey] = useState<string | null>(null);
   const [muscleFilter, setMuscleFilter] = useState<string>("");
   const [exerciseFilter, setExerciseFilter] = useState<string>("");
   const exerciseOptions = useMemo(() => {
@@ -80,6 +96,7 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
   const hasMoreRef = useRef(true);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMonthlySummary = useCallback(async () => {
     try {
@@ -198,7 +215,7 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
         indexMap.set(dateKey, index);
         groups.push({
           dateKey,
-          dateLabel: dateFormatter.format(new Date(session.performedAt)),
+          dateLabel: formatDateLabel(dateKey),
           items: [],
         });
       }
@@ -235,6 +252,33 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
     },
     [fetchMonthlySummary],
   );
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyDaySummary = useCallback(async (group: { dateKey: string; items: SessionItem[] }) => {
+    const lines = group.items.map((session) => `${session.exerciseName}: ${formatSetLine(session.sets)}`);
+    const textToCopy = [formatDateLabel(group.dateKey), ...lines].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      setCopiedDateKey(group.dateKey);
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = setTimeout(() => {
+        setCopiedDateKey((current) => (current === group.dateKey ? null : current));
+      }, 1800);
+    } catch {
+      setError("운동 요약을 복사하지 못했습니다. 브라우저 권한을 확인해주세요.");
+      setCopiedDateKey(null);
+    }
+  }, []);
 
   return (
     <section className="space-y-5 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -311,21 +355,43 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
           <div key={group.dateKey} className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-zinc-900">{group.dateLabel}</h3>
-              <span className="rounded-full bg-zinc-50 px-3 py-1 text-sm text-zinc-600">
-                {group.items.length}개의 운동
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopyDaySummary(group)}
+                  aria-label="해당 날짜 운동 복사"
+                  title="해당 날짜 운동 복사"
+                  className="rounded-full border border-zinc-200 p-2 text-zinc-700 transition hover:bg-zinc-100"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+                {copiedDateKey === group.dateKey ? (
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                    복사됨
+                  </span>
+                ) : null}
+                <span className="rounded-full bg-zinc-50 px-3 py-1 text-sm text-zinc-600">
+                  {group.items.length}개의 운동
+                </span>
+              </div>
             </div>
 
             <div className="space-y-3">
               {group.items.map((session) => {
-                const setLine = session.sets
-                  .map((set) => {
-                    const weight = set.weight != null ? `${set.weight}kg` : null;
-                    const reps = set.reps != null ? `${set.reps}회` : null;
-                    return [weight, reps].filter(Boolean).join(" × ");
-                  })
-                  .filter((line) => line.length > 0)
-                  .join(" · ") || "세트 정보 없음";
+                const setLine = formatSetLine(session.sets);
 
                 return (
                   <article
@@ -334,15 +400,13 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h4 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-zinc-900">
-                          <span>
-                            {muscleGroupLabels[session.muscleGroup] ?? session.muscleGroup} - {session.exerciseName}
-                          </span>
+                        <h4 className="flex flex-wrap items-center gap-2 text-base font-semibold text-zinc-900">
+                          <span>{session.exerciseName}</span>
                           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                             세트 {session.setCount}개
                           </span>
                           <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                            총 {session.totalVolume.toLocaleString()} kg·rep
+                            {session.totalVolume.toLocaleString()} kg
                           </span>
                         </h4>
                       </div>
