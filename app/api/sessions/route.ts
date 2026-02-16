@@ -16,45 +16,21 @@ type SessionRow = {
   }[] | null;
 };
 
-export async function GET(request: Request) {
-  const userId = process.env.SUPABASE_DEFAULT_USER_ID;
+type NormalizedSession = {
+  id: string;
+  performedAt: string;
+  muscleGroup: string;
+  exerciseName: string;
+  note: string | null;
+  perceivedIntensity: number | null;
+  setCount: number;
+  totalVolume: number;
+  topSet: { weight: number | null; reps: number | null } | null;
+  sets: { weight: number | null; reps: number | null }[];
+};
 
-  if (!userId) {
-    return NextResponse.json({ error: "SUPABASE_DEFAULT_USER_ID 환경 변수를 설정하세요." }, { status: 500 });
-  }
-
-  const url = new URL(request.url);
-  const limit = Math.min(Number(url.searchParams.get("limit")) || DEFAULT_LIMIT, 20);
-  const offset = Number(url.searchParams.get("offset")) || 0;
-  const muscleGroupFilter = url.searchParams.get("muscleGroup");
-  const exerciseFilter = url.searchParams.get("exerciseName");
-
-  const supabase = createServiceClient();
-  let query = supabase
-    .from("sessions")
-    .select(
-      `id, performed_at, muscle_group, note, perceived_intensity, ` +
-        `sets(weight, reps, exercise:exercise_id(name))`,
-    )
-    .eq("user_id", userId);
-
-  if (muscleGroupFilter) {
-    query = query.eq("muscle_group", muscleGroupFilter);
-  }
-
-  const { data, error } = await query
-    .order("performed_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const rows = Array.isArray(data)
-    ? (data as unknown as SessionRow[])
-    : ([] as SessionRow[]);
-
-  const normalized = rows.map((session) => {
+function normalizeSessions(rows: SessionRow[]): NormalizedSession[] {
+  return rows.map((session) => {
     const sets = session.sets ?? [];
     const setCount = sets.length;
     const totalVolume = sets.reduce((sum, set) => {
@@ -95,14 +71,122 @@ export async function GET(request: Request) {
       sets: normalizedSets,
     };
   });
+}
 
-  const filtered = exerciseFilter
-    ? normalized.filter((session) =>
-        session.exerciseName.toLowerCase().includes(exerciseFilter.toLowerCase()),
+export async function GET(request: Request) {
+  const userId = process.env.SUPABASE_DEFAULT_USER_ID;
+
+  if (!userId) {
+    return NextResponse.json({ error: "SUPABASE_DEFAULT_USER_ID 환경 변수를 설정하세요." }, { status: 500 });
+  }
+
+  const url = new URL(request.url);
+  const limit = Math.min(Number(url.searchParams.get("limit")) || DEFAULT_LIMIT, 20);
+  const offset = Number(url.searchParams.get("offset")) || 0;
+  const muscleGroupFilter = url.searchParams.get("muscleGroup");
+  const exerciseFilter = url.searchParams.get("exerciseName");
+
+  const supabase = createServiceClient();
+
+  if (exerciseFilter) {
+    const { data: exerciseRows, error: exerciseError } = await supabase
+      .from("exercises")
+      .select("id")
+      .ilike("name", `%${exerciseFilter}%`)
+      .or(`user_id.eq.${userId},user_id.is.null`);
+
+    if (exerciseError) {
+      return NextResponse.json({ error: exerciseError.message }, { status: 500 });
+    }
+
+    const exerciseIds = (exerciseRows ?? []).map((exercise) => exercise.id);
+    if (!exerciseIds.length) {
+      return NextResponse.json({ sessions: [], hasMore: false });
+    }
+
+    const { data: setRows, error: setError } = await supabase
+      .from("sets")
+      .select("session_id")
+      .in("exercise_id", exerciseIds);
+
+    if (setError) {
+      return NextResponse.json({ error: setError.message }, { status: 500 });
+    }
+
+    const sessionIds = Array.from(new Set((setRows ?? []).map((setRow) => setRow.session_id)));
+    if (!sessionIds.length) {
+      return NextResponse.json({ sessions: [], hasMore: false });
+    }
+
+    let countQuery = supabase
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .in("id", sessionIds);
+
+    if (muscleGroupFilter) {
+      countQuery = countQuery.eq("muscle_group", muscleGroupFilter);
+    }
+
+    const { count, error: countError } = await countQuery;
+    if (countError) {
+      return NextResponse.json({ error: countError.message }, { status: 500 });
+    }
+
+    let pageQuery = supabase
+      .from("sessions")
+      .select(
+        `id, performed_at, muscle_group, note, perceived_intensity, ` +
+          `sets(weight, reps, exercise:exercise_id(name))`,
       )
-    : normalized;
+      .eq("user_id", userId)
+      .in("id", sessionIds);
+
+    if (muscleGroupFilter) {
+      pageQuery = pageQuery.eq("muscle_group", muscleGroupFilter);
+    }
+
+    const { data: pagedRows, error: pageError } = await pageQuery
+      .order("performed_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (pageError) {
+      return NextResponse.json({ error: pageError.message }, { status: 500 });
+    }
+
+    const normalized = normalizeSessions(Array.isArray(pagedRows) ? (pagedRows as SessionRow[]) : []);
+    const hasMore = (count ?? 0) > offset + normalized.length;
+
+    return NextResponse.json({ sessions: normalized, hasMore });
+  }
+
+  let query = supabase
+    .from("sessions")
+    .select(
+      `id, performed_at, muscle_group, note, perceived_intensity, ` +
+        `sets(weight, reps, exercise:exercise_id(name))`,
+    )
+    .eq("user_id", userId);
+
+  if (muscleGroupFilter) {
+    query = query.eq("muscle_group", muscleGroupFilter);
+  }
+
+  const { data, error } = await query
+    .order("performed_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const rows = Array.isArray(data)
+    ? (data as unknown as SessionRow[])
+    : ([] as SessionRow[]);
+
+  const normalized = normalizeSessions(rows);
 
   const hasMore = rows.length === limit;
 
-  return NextResponse.json({ sessions: filtered, hasMore });
+  return NextResponse.json({ sessions: normalized, hasMore });
 }
