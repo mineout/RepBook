@@ -367,6 +367,9 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
                       <input
                         type="number"
                         min={1}
+                        step={1}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={set.reps}
                         onChange={(event) => handleSetChange(set.id, "reps", event.target.value)}
                         className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
