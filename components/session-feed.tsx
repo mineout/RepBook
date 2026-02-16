@@ -341,17 +341,50 @@ export function SessionFeed({ refreshKey = 0, onEditRequest }: SessionFeedProps)
                         <button
                           type="button"
                           onClick={() => onEditRequest?.(session)}
-                          className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                          aria-label="수정"
+                          title="수정"
+                          className="rounded-full border border-zinc-200 p-2 text-zinc-700 transition hover:bg-zinc-100"
                         >
-                          수정
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 20h9" />
+                            <path d="m16.5 3.5 4 4L7 21H3v-4z" />
+                          </svg>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(session.id)}
                           disabled={deletingId === session.id}
-                          className="rounded-full border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={deletingId === session.id ? "삭제 중" : "삭제"}
+                          title={deletingId === session.id ? "삭제 중" : "삭제"}
+                          className="rounded-full border border-rose-200 p-2 text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {deletingId === session.id ? "삭제 중..." : "삭제"}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`h-4 w-4 ${deletingId === session.id ? "animate-pulse" : ""}`}
+                            aria-hidden="true"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
+                          </svg>
                         </button>
                       </div>
                     </div>

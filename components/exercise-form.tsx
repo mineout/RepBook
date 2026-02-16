@@ -356,6 +356,8 @@ export function ExerciseForm({ onSaved, mode = "create", sessionId, initialValue
                         type="number"
                         min={0}
                         step="0.5"
+                        inputMode="decimal"
+                        pattern="[0-9]*[.,]?[0-9]*"
                         value={set.weight}
                         onChange={(event) => handleSetChange(set.id, "weight", event.target.value)}
                         className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
