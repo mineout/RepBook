@@ -39,6 +39,7 @@ create table if not exists public.sessions (
   user_id uuid not null references public.profiles (id) on delete cascade,
   performed_at timestamptz not null,
   muscle_group muscle_group not null,
+  source_import_key text,
   note text,
   perceived_intensity smallint,
   created_at timestamptz not null default timezone('utc', now()),
@@ -69,6 +70,8 @@ create table if not exists public.share_tokens (
 
 -- Indexes ------------------------------------------------------------------
 create index if not exists sessions_user_performed_idx on public.sessions (user_id, performed_at desc);
+create unique index if not exists sessions_user_source_import_key_unique
+  on public.sessions (user_id, source_import_key);
 create index if not exists sets_session_idx on public.sets (session_id);
 create index if not exists sets_exercise_idx on public.sets (exercise_id);
 create index if not exists share_tokens_session_idx on public.share_tokens (session_id);

@@ -62,5 +62,36 @@ RepBook은 모바일 웹 기반 웨이트 운동 기록 및 관리 시스템입�
 - 단순하고 빠른 기록 (운동중 사용해아하기 때문에 쉽고 실수가 나지 않는 UX/UI)
 - SQL 기반의 정확한 집계
 
+## CSV Import Migration
+`data/lift-workout-history/workout-history.csv`를 RepBook DB로 이관하는 스크립트입니다.
+
+### 실행 전 준비
+- `.env.local`에 아래 값이 있어야 합니다.
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `SUPABASE_SERVICE_KEY`
+  - `SUPABASE_DEFAULT_USER_ID` (또는 실행 시 `--user-id`)
+- DB에 `sessions.source_import_key` 컬럼이 있어야 하므로 migration을 먼저 적용하세요.
+  - `supabase/migrations/20260215093000_add_import_key_to_sessions.sql`
+
+### 커맨드
+```bash
+pnpm import:workout-history -- --file data/lift-workout-history/workout-history.csv --user-id <uuid>
+```
+
+옵션:
+- `--dry-run`: DB write 없이 CSV 파싱/검증만 수행
+- `--allow-empty-reps`: `30kg` 같은 토큰을 `reps = null`로 허용
+
+예시:
+```bash
+pnpm import:workout-history -- --dry-run
+pnpm import:workout-history -- --allow-empty-reps
+```
+
+### 동작 규칙
+- `CSV 1행 = sessions 1행`
+- 세트 파싱 실패 시 즉시 중단(엄격 모드)
+- `source_import_key(sha1)` 기반 upsert로 재실행 시 중복 세션 생성 방지
+- upsert된 session은 기존 `sets`를 삭제 후 재삽입
 
 

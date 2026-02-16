@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:workout-history": "node --experimental-strip-types scripts/import-workout-history.ts",
+    "test:import-parser": "node --experimental-strip-types --test scripts/lib/workout-history-parser.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
