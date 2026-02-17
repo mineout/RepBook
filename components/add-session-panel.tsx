@@ -23,6 +23,13 @@ export function AddSessionPanel({
   const [createOpen, setCreateOpen] = useState(false);
   const isEditMode = mode === "edit";
   const open = isEditMode ? true : createOpen;
+  const handleToggleCreate = () => {
+    const nextOpen = !createOpen;
+    setCreateOpen(nextOpen);
+    if (!nextOpen) {
+      onDraftFilterChange?.(null);
+    }
+  };
 
   return (
     <section className="space-y-6 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -55,15 +62,7 @@ export function AddSessionPanel({
         ) : (
           <button
             type="button"
-            onClick={() =>
-              setCreateOpen((prev) => {
-                const next = !prev;
-                if (!next) {
-                  onDraftFilterChange?.(null);
-                }
-                return next;
-              })
-            }
+            onClick={handleToggleCreate}
             className="h-12 rounded-full bg-blue-600 px-6 text-base font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             {open ? "입력창 닫기" : "운동 세션 추가"}
