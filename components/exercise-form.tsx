@@ -146,6 +146,14 @@ export function ExerciseForm({
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (isEditMode) {
       return;
     }
@@ -208,24 +216,18 @@ export function ExerciseForm({
 
     try {
       setStatus("saving");
-      setStatusMessage(isEditMode ? "운동을 수정하는 중입니다..." : "운동을 저장하는 중입니다...");
+      setStatusMessage("운동 저장 중입니다...");
       if (isEditMode && sessionId) {
         await updateSession({ ...summary, sessionId });
-        onSaved?.();
-        setStatus("success");
-        setStatusMessage("수정이 완료되었습니다.");
-        resetForm();
       } else {
         await saveExercise(summary);
-        onSaved?.();
-        setStatus("success");
-        setStatusMessage("저장 완료! 3초 후 메인 화면으로 이동합니다.");
-        timerRef.current = setTimeout(() => {
-          router.push("/");
-          router.refresh();
-          resetForm();
-        }, 3000);
       }
+      timerRef.current = setTimeout(() => {
+        onSaved?.();
+        router.push("/");
+        router.refresh();
+        resetForm();
+      }, 2000);
     } catch (error) {
       setStatus("error");
       setStatusMessage(
@@ -345,13 +347,6 @@ export function ExerciseForm({
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-900">세트 입력</h2>
-              <button
-                type="button"
-                onClick={handleSetAdd}
-                className="rounded-full border border-blue-200 px-4 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50"
-              >
-                세트 추가
-              </button>
             </div>
 
             <div className="space-y-3">
@@ -401,6 +396,18 @@ export function ExerciseForm({
                       />
                     </label>
                   </div>
+                  {index === sets.length - 1 ? (
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSetAdd}
+                        disabled={!set.reps.trim()}
+                        className="rounded-full border border-rose-300 bg-rose-50 px-4 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400 disabled:hover:bg-zinc-100"
+                      >
+                        세트 추가
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -496,6 +503,14 @@ export function ExerciseForm({
         </div>
       </form>
 
+      {status === "saving" ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/65">
+          <div className="rounded-2xl border border-white/20 bg-zinc-900 px-8 py-6 text-center text-white shadow-2xl">
+            <p className="text-xl font-semibold">운동 저장중...</p>
+            <p className="mt-2 text-sm text-zinc-200">잠시만 기다려주세요.</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
