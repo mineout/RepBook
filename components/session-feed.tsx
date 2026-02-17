@@ -392,6 +392,7 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
             <div className="space-y-3">
               {group.items.map((session) => {
                 const setLine = formatSetLine(session.sets);
+                const hasWeightedSet = session.sets.some((set) => set.weight != null && set.weight > 0);
 
                 return (
                   <article
@@ -405,9 +406,11 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
                           <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                             세트 {session.setCount}개
                           </span>
-                          <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                            {session.totalVolume.toLocaleString()} kg
-                          </span>
+                          {hasWeightedSet ? (
+                            <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                              {session.totalVolume.toLocaleString()} kg
+                            </span>
+                          ) : null}
                         </h4>
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-zinc-600">
