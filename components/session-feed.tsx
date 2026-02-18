@@ -398,19 +398,18 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
                     key={session.id}
                     className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 shadow-sm"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h4 className="flex flex-wrap items-center gap-2 text-base font-semibold text-zinc-900">
-                          <span>{session.exerciseName}</span>
-                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                            세트 {session.setCount}개
+                    <h4 className="text-base font-semibold text-zinc-900">{session.exerciseName}</h4>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                          세트 {session.setCount}개
+                        </span>
+                        {hasWeightedSet ? (
+                          <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                            {session.totalVolume.toLocaleString()} kg
                           </span>
-                          {hasWeightedSet ? (
-                            <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                              {session.totalVolume.toLocaleString()} kg
-                            </span>
-                          ) : null}
-                        </h4>
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-zinc-600">
                         <button
@@ -466,9 +465,7 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
 
                     <p className="mt-3 text-sm font-medium text-zinc-800">{setLine}</p>
 
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
-                      {session.note ? <span className="text-zinc-600">{session.note}</span> : null}
-                    </div>
+                    {session.note ? <p className="mt-2 text-sm text-zinc-600">{session.note}</p> : null}
                   </article>
                 );
               })}
