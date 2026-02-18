@@ -30,7 +30,6 @@ type SessionItem = {
   muscleGroup: string;
   exerciseName: string;
   note: string | null;
-  perceivedIntensity: number | null;
   setCount: number;
   totalVolume: number;
   topSet: { weight: number | null; reps: number | null } | null;
@@ -414,11 +413,6 @@ export function SessionFeed({ refreshKey = 0, onEditRequest, appliedFilter = nul
                         </h4>
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-zinc-600">
-                        {session.perceivedIntensity ? (
-                          <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
-                            RPE {session.perceivedIntensity}
-                          </span>
-                        ) : null}
                         <button
                           type="button"
                           onClick={() => onEditRequest?.(session)}

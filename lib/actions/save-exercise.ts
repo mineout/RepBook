@@ -12,7 +12,6 @@ export type SaveExercisePayload = {
   sessionDate: string;
   muscleGroup: string;
   exerciseName: string;
-  perceivedEffort: string;
   note: string;
   sets: SetPayload[];
 };
@@ -72,7 +71,6 @@ export async function saveExercise(payload: SaveExercisePayload) {
     exerciseId = insertedExercise.id;
   }
 
-  const perceivedIntensity = Number(payload.perceivedEffort) || null;
   const performedAt = new Date(payload.sessionDate);
   if (Number.isNaN(performedAt.getTime())) {
     throw new Error("유효한 날짜를 입력하세요.");
@@ -85,7 +83,6 @@ export async function saveExercise(payload: SaveExercisePayload) {
       performed_at: performedAt.toISOString(),
       muscle_group: payload.muscleGroup,
       note: payload.note,
-      perceived_intensity: perceivedIntensity,
     })
     .select("id")
     .single();

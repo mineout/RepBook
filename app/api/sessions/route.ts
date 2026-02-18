@@ -8,7 +8,6 @@ type SessionRow = {
   performed_at: string;
   muscle_group: string;
   note: string | null;
-  perceived_intensity: number | null;
   sets: {
     weight: number | null;
     reps: number | null;
@@ -22,7 +21,6 @@ type NormalizedSession = {
   muscleGroup: string;
   exerciseName: string;
   note: string | null;
-  perceivedIntensity: number | null;
   setCount: number;
   totalVolume: number;
   topSet: { weight: number | null; reps: number | null } | null;
@@ -37,8 +35,7 @@ function isSessionRow(value: unknown): value is SessionRow {
     typeof candidate.id === "string" &&
     typeof candidate.performed_at === "string" &&
     typeof candidate.muscle_group === "string" &&
-    (candidate.note === null || typeof candidate.note === "string") &&
-    (candidate.perceived_intensity === null || typeof candidate.perceived_intensity === "number");
+    (candidate.note === null || typeof candidate.note === "string");
 
   if (!hasBaseFields) return false;
   if (!(candidate.sets === null || Array.isArray(candidate.sets))) return false;
@@ -106,7 +103,6 @@ function normalizeSessions(rows: SessionRow[]): NormalizedSession[] {
       muscleGroup: session.muscle_group,
       exerciseName,
       note: session.note,
-      perceivedIntensity: session.perceived_intensity,
       setCount,
       totalVolume,
       topSet,
@@ -178,7 +174,7 @@ export async function GET(request: Request) {
     let pageQuery = supabase
       .from("sessions")
       .select(
-        `id, performed_at, muscle_group, note, perceived_intensity, ` +
+        `id, performed_at, muscle_group, note, ` +
           `sets(weight, reps, exercise:exercise_id(name))`,
       )
       .eq("user_id", userId)
@@ -205,7 +201,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("sessions")
     .select(
-      `id, performed_at, muscle_group, note, perceived_intensity, ` +
+      `id, performed_at, muscle_group, note, ` +
         `sets(weight, reps, exercise:exercise_id(name))`,
     )
     .eq("user_id", userId);

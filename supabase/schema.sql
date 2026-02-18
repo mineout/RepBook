@@ -41,7 +41,6 @@ create table if not exists public.sessions (
   muscle_group muscle_group not null,
   source_import_key text,
   note text,
-  perceived_intensity smallint,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );

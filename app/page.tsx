@@ -32,7 +32,6 @@ export default function Home() {
       sessionDate: editingSession.performedAt.slice(0, 10),
       muscleGroup: editingSession.muscleGroup,
       exerciseName: editingSession.exerciseName,
-      perceivedEffort: editingSession.perceivedIntensity,
       note: editingSession.note,
       sets: editingSession.sets,
     };

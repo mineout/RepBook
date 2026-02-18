@@ -32,7 +32,6 @@ export type ExerciseFormInitialValues = {
   sessionDate: string;
   muscleGroup: string;
   exerciseName: string;
-  perceivedEffort?: number | string | null;
   note?: string | null;
   sets: { weight: number | null; reps: number | null }[];
 };
@@ -76,7 +75,6 @@ export function ExerciseForm({
         exerciseName: initialValues.exerciseName,
         muscleGroup: initialValues.muscleGroup,
         sessionDate: initialValues.sessionDate,
-        perceivedEffort: initialValues.perceivedEffort?.toString() ?? "6",
         note: initialValues.note ?? "",
         sets: buildInitialSets(initialValues.sets),
       };
@@ -85,7 +83,6 @@ export function ExerciseForm({
       exerciseName: "",
       muscleGroup: "chest",
       sessionDate: today,
-      perceivedEffort: "6",
       note: "",
       sets: [createSet()],
     };
@@ -95,7 +92,6 @@ export function ExerciseForm({
   const [exerciseName, setExerciseName] = useState(initialFormState.exerciseName);
   const [muscleGroup, setMuscleGroup] = useState(initialFormState.muscleGroup);
   const [sessionDate, setSessionDate] = useState(initialFormState.sessionDate);
-  const [perceivedEffort, setPerceivedEffort] = useState(initialFormState.perceivedEffort);
   const [note, setNote] = useState(initialFormState.note);
   const [sets, setSets] = useState<SetInput[]>(initialFormState.sets);
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
@@ -115,11 +111,10 @@ export function ExerciseForm({
       sessionDate,
       muscleGroup,
       exerciseName,
-      perceivedEffort,
       note,
       sets: filledSets,
     }),
-    [exerciseName, filledSets, muscleGroup, note, perceivedEffort, sessionDate],
+    [exerciseName, filledSets, muscleGroup, note, sessionDate],
   );
 
   useEffect(() => {
@@ -180,7 +175,6 @@ export function ExerciseForm({
     setExerciseName(initialFormState.exerciseName);
     setMuscleGroup(initialFormState.muscleGroup);
     setSessionDate(initialFormState.sessionDate);
-    setPerceivedEffort(initialFormState.perceivedEffort);
     setNote(initialFormState.note);
     setSets(initialFormState.sets);
     setStep(1);
@@ -434,20 +428,8 @@ export function ExerciseForm({
               )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700">
-                RPE (1-10)
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={perceivedEffort}
-                  onChange={(event) => setPerceivedEffort(event.target.value)}
-                  className="rounded-lg border border-zinc-200 px-3 py-2 text-base text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-
-              <label className="flex flex-col gap-2 text-sm font-medium text-zinc-700 sm:col-span-2">
                 메모
                 <textarea
                   value={note}

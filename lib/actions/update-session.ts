@@ -66,7 +66,6 @@ export async function updateSession(payload: UpdateSessionPayload) {
     exerciseId = insertedExercise.id;
   }
 
-  const perceivedIntensity = Number(payload.perceivedEffort) || null;
   const performedAt = new Date(payload.sessionDate);
   if (Number.isNaN(performedAt.getTime())) {
     throw new Error("유효한 날짜를 입력하세요.");
@@ -78,7 +77,6 @@ export async function updateSession(payload: UpdateSessionPayload) {
       performed_at: performedAt.toISOString(),
       muscle_group: payload.muscleGroup,
       note: payload.note,
-      perceived_intensity: perceivedIntensity,
     })
     .eq("id", payload.sessionId)
     .eq("user_id", userId);
