@@ -116,3 +116,28 @@ returning token, expires_at;
 
 반환된 `token` 값을 ChatGPT Action 호출의 `token` 쿼리 파라미터로 사용하세요.
 
+## Internal Admin API (Token Rotation)
+토큰 발급/폐기를 자동화하기 위한 내부 관리자 API입니다.
+
+### 환경 변수
+- `ADMIN_API_KEY`: 관리자 API 호출 키
+
+### 공통 헤더
+```http
+X-Admin-Key: <ADMIN_API_KEY>
+```
+
+### 엔드포인트
+- `GET /api/admin/action-token?userId=<uuid>`
+  - 해당 사용자의 활성 토큰 목록 조회
+- `POST /api/admin/action-token`
+  - 원클릭 회전(활성 토큰 폐기 + 신규 토큰 발급)
+  - Body: `{ "userId": "<uuid>", "ttlDays": 7 }`
+- `DELETE /api/admin/action-token`
+  - 해당 사용자의 활성 토큰 전체 폐기
+  - Body: `{ "userId": "<uuid>" }`
+
+### 동작 규칙
+- `POST` 회전 시 `sessions` 최신 1건을 찾아 `share_tokens.session_id`로 사용합니다.
+- `ttlDays`는 1~30 정수만 허용하며, 기본값은 7일입니다.
+- 인증 실패는 `401`, 입력 오류는 `400`, 대상 세션 없음은 `404`를 반환합니다.
