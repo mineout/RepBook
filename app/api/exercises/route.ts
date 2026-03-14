@@ -10,29 +10,18 @@ export async function GET() {
 
   const supabase = createServiceClient();
   const { data, error } = await supabase
-    .from("sets")
-    .select("exercise:exercise_id(name), session:sessions!inner(user_id)")
-    .eq("session.user_id", userId);
+    .from("exercises")
+    .select("name")
+    .eq("user_id", userId)
+    .order("name");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const uniqueNames = new Set<string>();
-  const suggestions: string[] = [];
-  type ExerciseRow = {
-    exercise: { name: string | null } | null;
-  };
-
-  const rows: ExerciseRow[] = Array.isArray(data) ? (data as unknown as ExerciseRow[]) : [];
-
-  rows.forEach((row) => {
-    const name = row.exercise?.name ?? undefined;
-    if (name && !uniqueNames.has(name)) {
-      uniqueNames.add(name);
-      suggestions.push(name);
-    }
-  });
+  const suggestions = (Array.isArray(data) ? data : [])
+    .map((row) => row.name?.trim())
+    .filter((name): name is string => Boolean(name));
 
   return NextResponse.json({ exercises: suggestions.sort((a, b) => a.localeCompare(b)) });
 }
