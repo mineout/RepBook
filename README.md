@@ -94,4 +94,25 @@ pnpm import:workout-history -- --allow-empty-reps
 - `source_import_key(sha1)` 기반 upsert로 재실행 시 중복 세션 생성 방지
 - upsert된 session은 기존 `sets`를 삭제 후 재삽입
 
+## ChatGPT Mobile Action API (Read-only)
+모바일 ChatGPT(Custom GPT Action)에서 RepBook 데이터를 조회하기 위한 읽기 전용 API입니다.
+
+### Endpoints
+- `GET /api/action/sessions?token=...&limit=8&offset=0&muscleGroup=...&exerciseName=...`
+- `GET /api/action/summary?token=...`
+- `GET /api/action/exercises?token=...&q=...`
+- `GET /api/action/openapi` (Custom GPT에 연결할 OpenAPI 스키마)
+
+### 인증 방식
+- `share_tokens.token`(UUID) 기반 조회 전용 인증을 사용합니다.
+- 토큰이 없으면 `400`, 무효하면 `401`, 만료되면 `403`을 반환합니다.
+
+### 토큰 발급 예시 (7일)
+```sql
+insert into public.share_tokens (session_id, user_id, expires_at)
+values ('<existing_session_id>', '<your_user_id>', timezone('utc', now()) + interval '7 days')
+returning token, expires_at;
+```
+
+반환된 `token` 값을 ChatGPT Action 호출의 `token` 쿼리 파라미터로 사용하세요.
 
