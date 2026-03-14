@@ -186,6 +186,8 @@ export async function GET(request: Request) {
 
     const { data: pagedRows, error: pageError } = await pageQuery
       .order("performed_at", { ascending: false })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (pageError) {
@@ -212,6 +214,8 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
     .order("performed_at", { ascending: false })
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .range(offset, offset + limit - 1);
 
   if (error) {
